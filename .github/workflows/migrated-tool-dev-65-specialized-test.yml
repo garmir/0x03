@@ -1,0 +1,12 @@
+name: Specialized Tool Test
+on: workflow_dispatch  
+jobs:
+  specialized:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y nmap sqlmap nikto python3 golang-go
+          echo "Specialized test for REPO"
+          curl -s ifconfig.me
+          nmap --version
