@@ -1,0 +1,37 @@
+name: Working Parallel Cascade
+on: [push, workflow_dispatch]
+
+jobs:
+  parallel-cascade:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target: [0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@main
+        continue-on-error: true
+
+      - name: Parallel Cascade Execution
+        continue-on-error: true
+        run: |
+          nix-shell -p curl coreutils --run '
+            echo "Parallel cascade from $(echo ${{ github.repository }} | cut -d/ -f2) to ${{ matrix.target }}" > cascade-${{ matrix.target }}.txt
+            echo "Timestamp: $(date)" >> cascade-${{ matrix.target }}.txt
+            curl -s ifconfig.me >> cascade-${{ matrix.target }}.txt
+          '
+
+      - name: Ubuntu Fallback
+        if: failure()
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y curl
+          echo "Ubuntu fallback parallel cascade to ${{ matrix.target }}" > fallback-${{ matrix.target }}.txt
+          curl -s ifconfig.me >> fallback-${{ matrix.target }}.txt
+
+      - name: Upload Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: cascade-${{ matrix.target }}
+          path: "*.txt"
+          retention-days: 1
