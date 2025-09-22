@@ -1,0 +1,11 @@
+name: Cycle 4 Security Test
+on: workflow_dispatch
+jobs:
+  security-test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y nmap hydra john sqlmap metasploit-framework
+          echo "Cycle 4: Advanced security tools"
+          curl -s ifconfig.me
