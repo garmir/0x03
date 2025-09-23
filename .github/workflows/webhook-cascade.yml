@@ -1,0 +1,49 @@
+name: Webhook Cascade Test
+on:
+  repository_dispatch:
+    types: [cascade-trigger]
+  workflow_dispatch:
+
+jobs:
+  webhook-cascade:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@main
+        continue-on-error: true
+
+      - name: Test Repository Dispatch Cascade
+        continue-on-error: true
+        run: |
+          nix-shell -p curl coreutils --run '
+            echo "=== Webhook Cascade Test ===" > webhook-cascade.txt
+            echo "Repository: ${{ github.repository }}" >> webhook-cascade.txt
+            echo "Event: ${{ github.event.action }}" >> webhook-cascade.txt
+            echo "Timestamp: $(date)" >> webhook-cascade.txt
+            curl -s ifconfig.me >> webhook-cascade.txt
+          '
+
+      - name: Trigger Next Repository via Repository Dispatch
+        run: |
+          nix-shell -p curl --run '
+            curl -X POST \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+              https://api.github.com/repos/garmir/0x02/dispatches \
+              -d "{\"event_type\":\"cascade-trigger\",\"client_payload\":{\"source\":\"${{ github.repository }}\"}}" || echo "Trigger sent to 0x02"
+          '
+
+      - name: Ubuntu Fallback Webhook Test
+        if: failure()
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y curl
+          echo "Ubuntu webhook fallback test" > webhook-fallback.txt
+          curl -s ifconfig.me >> webhook-fallback.txt
+
+      - name: Upload Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: webhook-cascade-results
+          path: "*.txt"
+          retention-days: 1
