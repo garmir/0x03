@@ -1,0 +1,44 @@
+name: Network Discovery Test - VNet Isolation Validation
+on: [push, workflow_dispatch]
+
+jobs:
+  network-discovery:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@main
+        continue-on-error: true
+
+      - name: Network Discovery - Test VNet Claims
+        continue-on-error: true
+        run: |
+          nix-shell -p nmap iproute2 nettools curl --run '
+            echo "=== Network Discovery Test ===" > network-discovery.txt
+            echo "External IP: $(curl -s ifconfig.me)" >> network-discovery.txt
+            echo "Internal network:" >> network-discovery.txt
+            ip addr show >> network-discovery.txt
+            echo "Route table:" >> network-discovery.txt
+            ip route show >> network-discovery.txt
+            echo "Network neighbors:" >> network-discovery.txt
+            ip neigh show >> network-discovery.txt
+            echo "Docker networks:" >> network-discovery.txt
+            nmap -sn 172.17.0.0/16 | head -20 >> network-discovery.txt
+            echo "Local services:" >> network-discovery.txt
+            netstat -tlnp >> network-discovery.txt
+          '
+
+      - name: Ubuntu Fallback Network Test
+        if: failure()
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y nmap iproute2 net-tools curl
+          echo "Ubuntu fallback network discovery" > ubuntu-network.txt
+          curl -s ifconfig.me >> ubuntu-network.txt
+          ip addr show >> ubuntu-network.txt
+
+      - name: Upload Network Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: network-discovery-${{ github.repository_owner }}-$(echo ${{ github.repository }} | cut -d/ -f2)
+          path: "*.txt"
+          retention-days: 3
